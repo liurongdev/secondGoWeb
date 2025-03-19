@@ -1,8 +1,8 @@
 package client
 
 import (
+	"awesomeProject2/middleware/logger"
 	"context"
-	"fmt"
 	pb "github.com/liurongdev/firstGoWeb/grpc/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -16,30 +16,26 @@ func init() {
 }
 
 func TestCallRemoteGrpc() string {
-	//defer func() {
-	//	r := recover()
-	//	if r != nil {
-	//		fmt.Println(r)
-	//	}
-	//}()
-
 	conn, err := grpc.Dial("localhost:8081", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 		panic(err)
 	}
 	defer conn.Close()
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Info("error_result:", err)
+		}
+	}()
 	client := pb.NewHelloServiceClient(conn)
-	// 将 metadata 添加到上下文中
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// 调用远程方法
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stderr, os.Stderr))
+	logger.Info("client.sayHello")
 	resp, err := client.SayHello(ctx, &pb.HelloRequest{Name: "World"})
 	if err != nil {
-		fmt.Printf("SayHello err:%v\n", err)
+		logger.Error("SayHello err:%v\n", err)
 	}
-
 	log.Printf("Response from server: %s", resp)
 	return resp.Message
 }
