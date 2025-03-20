@@ -5,11 +5,18 @@ import (
 	"awesomeProject2/middleware/logger"
 	"awesomeProject2/middleware/redis"
 	"awesomeProject2/model"
+	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"io/ioutil"
+	"net/http"
 	"net/rpc"
 	"strconv"
 	"time"
+)
+
+const (
+	localWebUrl = "http://127.0.0.1:8081"
 )
 
 type User struct {
@@ -57,12 +64,28 @@ func InsertSystemUserInfo(c *gin.Context) {
 		app.ERROR(c, nil, "参数绑定错误", 400)
 		return
 	}
-	id, insertE := model.Insert(user)
-	if insertE != nil {
-		app.ERROR(c, nil, insertE.Error(), 400)
+	url := localWebUrl + "/user/insert"
+	b, _ := json.Marshal(user)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("token", "23")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	if err != nil {
+		app.ERROR(c, nil, err.Error(), 400)
 		return
 	}
-	app.OK(c, id, "")
+	logger.Info(resp)
+	body, _ := ioutil.ReadAll(resp.Body)
+	var res = make(map[string]interface{})
+	json.Unmarshal(body, &res)
+	if resp.StatusCode == http.StatusOK {
+		app.OK(c, res["data"], "")
+	} else {
+		app.ERROR(c, nil, res["message"].(string), 400)
+	}
+
 }
 
 func UpdateSystemUserInfo(c *gin.Context) {
